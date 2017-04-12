@@ -25,16 +25,45 @@ test_df = pd.read_csv('test.csv')
 train_df['Title'] = train_df.Name.str.extract(' ([A-Za-z]+)\.', expand=False)
 test_df['Title'] = test_df.Name.str.extract(' ([A-Za-z]+)\.', expand=False)
 
+
+titleDict = {"Capt":       "Officer",
+            "Col":        "Officer",
+            "Major":      "Officer",
+            "Jonkheer":   "Royalty",
+            "Don":        "Royalty",
+            "Sir" :       "Royalty",
+            "Dr":         "Officer",
+            "Rev":        "Officer",
+            "the Countess":"Royalty",
+            "Dona":       "Royalty",
+            "Mme":        "Mrs",
+            "Mlle":       "Miss",
+            "Ms":         "Mrs",
+            "Mr" :        "Mr",
+            "Mrs" :       "Mrs",
+            "Miss" :      "Miss",
+            "Master" :    "Master",
+            "Lady" :      "Royalty"}
+
+train_df['Title'] = train_df['Title'].map(titleDict)
+test_df['Title'] = test_df['Title'].map(titleDict)
+
+
 #Drop useless/missing too many values
 train_df.drop(['Cabin', 'Name', 'Ticket', 'PassengerId'], inplace=True, axis=1)
 test_df.drop(['Cabin', 'Name', 'Ticket'], inplace=True, axis=1)
 
 #fill missing values
-train_df['Age'] = train_df['Age'].fillna(train_df['Age'].mean() + train_df['Age'].std()*np.random.normal())
-test_df['Age'] = test_df['Age'].fillna(test_df['Age'].mean() + test_df['Age'].std()*np.random.normal())
+train_df['Age'] = train_df[['Age', 'Sex', 'Pclass']].groupby(['Sex', 'Pclass']).transform(lambda x:  x.fillna(x.mean() + x.std()*np.random.normal()))
+test_df['Age'] = test_df[['Age', 'Sex', 'Pclass']].groupby(['Sex', 'Pclass']).transform(lambda x:  x.fillna(x.mean() + x.std()*np.random.normal()))
+#Age depends on sex and passenger class a lot; impute with means based on those values
 
-train_df['Embarked'] = train_df['Embarked'].fillna(train_df['Embarked'].mode()[0])
-test_df['Fare'] = test_df['Fare'].fillna(test_df['Fare'].mean())
+
+# train_df['Embarked'] = train_df['Embarked'].fillna(train_df['Embarked'].mode()[0])
+# test_df['Fare'] = test_df['Fare'].fillna(test_df['Fare'].mean())
+train_df['Embarked'] = train_df[['Embarked', 'Pclass']].groupby('Pclass').transform(lambda x: x.fillna(x.mode()[0]))
+test_df['Fare'] = test_df[['Fare', 'Pclass']].groupby('Pclass').transform(lambda x: x.fillna(x.mean()))
+
 
 train_df['FamSize'] = train_df['SibSp'] + train_df['Parch']+1
 train_df.drop(['SibSp', 'Parch'], inplace=True, axis=1)
@@ -67,9 +96,11 @@ xTrain, xVal, yTrain, yVal = train_test_split(train_df, survived, test_size=0.5)
 layer1 = LogisticRegression()
 
 models = [ExtraTreesClassifier(n_estimators=100, max_depth=5, min_samples_leaf=3, criterion='entropy', max_features='log2'),\
-        RandomForestClassifier(n_estimators = 1000, max_depth=9, max_features='sqrt', min_samples_leaf=3, min_samples_split=2)]
+        RandomForestClassifier(n_estimators=220, criterion= 'gini', max_depth= 5, max_features='sqrt')]
 
 model = StackingClassifier(classifiers=models, meta_classifier=layer1)
+
+model = RandomForestClassifier(n_estimators=220, criterion= 'gini', max_depth= 5, max_features='sqrt')
 
 print 'Training...'
 est = model
